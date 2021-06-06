@@ -21,7 +21,7 @@ module CHIP(
     // For mem_I
     output [31:0] mem_addr_I ;
     input  [31:0] mem_rdata_I;
-    
+
     //---------------------------------------//
     // Do not modify this part!!!            //
     // Exception: You may change wire to reg //
@@ -39,6 +39,7 @@ module CHIP(
     parameter RUN = 1'd0;
     parameter STALL = 1'd1;
 
+    // instruction types
     parameter R_type = 3'd0;
     parameter I_type = 3'd1;
     parameter S_type = 3'd2;
@@ -46,12 +47,24 @@ module CHIP(
     parameter U_type = 3'd4;
     parameter J_type = 3'd5;
 
+    // alu control
+    parameter ADD = 3'd0;
+    parameter SUB = 3'd1;
+    parameter SLT = 3'd2;
+    parameter SLL = 3'd3;
+    parameter SRA = 3'd4;
+
     // control
     reg [2:0] type;
     reg jalr, jal, branch, mem_to_reg, alu_src;
     reg [6:0] opcode;
     reg [2:0] funct3;
     reg [6:0] funct7;
+    
+    // mul
+    reg mul_valid;
+    wire [63:0] mul_out;
+    wire mul_ready;
 
     // alu
     reg [3:0] alu_ctrl;  // TODO: how many bits?
@@ -73,7 +86,12 @@ module CHIP(
         .q1(rs1_data),                       //
         .q2(rs2_data));                      //
     //---------------------------------------//
-    
+    mulDiv mul_div_inst(
+        .clk(clk), .rst_n(rst_n), .valid(mul_valid), mode(1'd1),
+        .in_A(rs1_data), in_B(rs2_data),
+        .ready(mul_ready), .out(mul_out)
+    );
+
     // Todo: any combinational/sequential circuit
     //===== Combinational =======================
     // Finite State Machine
@@ -81,10 +99,10 @@ module CHIP(
         case (state)
         // TODO: detect MUL and handle FSM
             RUN: begin
-                state_nxt = state;
+                state_nxt = mul_valid? STALL : RUN;
             end
             STALL: begin
-                state_nxt = state;
+                state_nxt = mul_ready? RUN : STALL;
             end
             default: begin
                 state_nxt = state;
@@ -96,7 +114,6 @@ module CHIP(
     always @(*) begin
         type = R_type;
     end
-
 
     // handle I/O and control signals
     assign mem_addr_I = PC;
@@ -129,14 +146,17 @@ module CHIP(
         end
     end
 
-    // immediate
+    // immediate generator
     always @(*) begin
-        imm_gen_out = 
+        imm_gen_out = 32'd0;
     end
 
     // alu
     always @(*) begin
-        alu_out = 
+        case (alu_ctrl)
+            3'b000:
+            3'b000:
+        endcase
     end
 
 
