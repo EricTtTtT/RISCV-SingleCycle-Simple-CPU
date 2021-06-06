@@ -14,7 +14,7 @@ module CHIP(
 
     input         clk, rst_n ;
     // For mem_D
-    output        mem_wen_D  ;
+    output reg    mem_wen_D  ;
     output [31:0] mem_addr_D ;
     output [31:0] mem_wdata_D;
     input  [31:0] mem_rdata_D;
@@ -48,10 +48,14 @@ module CHIP(
 
     // control
     reg [2:0] type;
-    reg jalr, jal, branch, mem_read, mem_to_reg, mem_write, alu_src;
+    reg jalr, jal, branch, mem_to_reg, alu_src;
     reg [6:0] opcode;
     reg [2:0] funct3;
     reg [6:0] funct7;
+
+    // alu
+    reg [3:0] alu_ctrl;  // TODO: how many bits?
+    reg [31:0] alu_out, imm_gen_out;
 
     // flip-flops
     reg state, state_nxt;
@@ -93,14 +97,23 @@ module CHIP(
         type = R_type;
     end
 
-    // control signals
+
+    // handle I/O and control signals
+    assign mem_addr_I = PC;
+    assign mem_addr_D = alu_out;
+    assign mem_wdata_D = rs2_data;
     always @(*) begin
+        opcode = mem_rdata_I[6:0];
+        rd = mem_rdata_I[11:7];
+        rs1 = mem_rdata_I[19:15];
+        rs2 = mem_rdata_I[24:20];
+        func3 = mem_rdata_I[14:12];
+        func7 = mem_rdata_I[31:25];
+
         jalr = 0;
         jal = 0;
         branch = 0;
-        mem_read = 0;
         mem_to_reg = 0;
-        mem_write = 0;
         alu_src = 0;
         if (state == RUN) begin
             case (type)
@@ -111,11 +124,25 @@ module CHIP(
             jalr = 0;
             jal = 0;
             branch = 0;
-            mem_read = 0;
             mem_to_reg = 0;
-            mem_write = 0;
             alu_src = 0;
         end
+    end
+
+    // immediate
+    always @(*) begin
+        imm_gen_out = 
+    end
+
+    // alu
+    always @(*) begin
+        alu_out = 
+    end
+
+
+    // handle PC
+    always @(*) begin
+        PC_nxt = PC;
     end
 
     //===== Sequential ==========================
