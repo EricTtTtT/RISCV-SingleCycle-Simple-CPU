@@ -67,7 +67,7 @@ module CHIP(
     wire mul_ready;
 
     // alu
-    reg [3:0] alu_ctrl;  // TODO: how many bits?
+    reg [3:0] alu_ctrl;
     reg [31:0] alu_out, imm_gen_out;
 
     // flip-flops
@@ -155,6 +155,15 @@ module CHIP(
         imm_gen_out = 32'd0;
     end
 
+    // alu control
+    always @(*) begin
+        alu_ctrl = func3[2] == 1'b1? SRA: 
+                   func3[0] == 1'b1? SLL:
+                   func3[1] == 1'b1 && opcode[4] == 1'b1? SLT:
+                   (func3[1] == 1'b0 && opcode[2] == 1'b0 && opcode[5] == 1'b1) && (opcode[4] == 1'b0 || (func7[5] == 1'b1 && opcode[4] == 1'b1))? SUB:
+                   ADD;
+    end
+
     // alu
     always @(*) begin
         case (alu_ctrl)
@@ -165,7 +174,7 @@ module CHIP(
 
     // handle PC
     always @(*) begin
-        PC_nxt = PC;
+        PC_nxt = PC;  // PC + 4?
     end
 
     //===== Sequential ==========================
