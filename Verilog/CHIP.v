@@ -97,7 +97,7 @@ module CHIP(
     // Finite State Machine
     always @(*) begin
         case (state)
-        // TODO: detect MUL and handle FSM
+        // TODO: detect  and handle FSM
             RUN: begin
                 state_nxt = mul_valid? STALL : RUN;
             end
