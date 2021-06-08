@@ -112,7 +112,17 @@ module CHIP(
 
     // detect instruction type by opcode
     always @(*) begin
-        type = R_type;
+        case (mem_rdata_I[6:0])
+            7'b0010011: begin type = R_type; end
+            7'b0110011: begin type = R_type; end
+            7'b1100111: begin type = I_type; end
+            7'b0000011: begin type = I_type; end
+            7'b0010011: begin type = I_type; end
+            7'b0100011: begin type = S_type; end
+            7'b1100011: begin type = B_type; end
+            7'b0010111: begin type = U_type; end
+            7'b1101111: begin type = J_type; end
+        endcase
     end
 
     // handle I/O and control signals
