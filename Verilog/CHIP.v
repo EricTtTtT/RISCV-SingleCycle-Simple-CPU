@@ -192,7 +192,14 @@ module CHIP(
 
     // immediate generator
     always @(*) begin
-        imm_gen_out = 32'd0;
+        case (type)
+            I_type: imm_gen_out = {20{mem_rdata_I[31]}, mem_rdata_I[31:20]};
+            S_type: imm_gen_out = {20{mem_rdata_I[31]}, mem_rdata_I[31:25], mem_rdata_I[11:7]};
+            B_type: imm_gen_out = {20{mem_rdata_I[31]}, mem_rdata_I[7], mem_rdata_I[29:25], mem_rdata_I[11:8]};
+            U_type: imm_gen_out = {mem_rdata_I[31:12], 12'd0};
+            J_type: imm_gen_out = {12{mem_rdata_I[31]}, mem_rdata_I[19:12], mem_rdata_I[20], mem_rdata_I[30:21]};
+            default: imm_gen_out = 32'd0;
+        endcase
     end
 
     // alu control
