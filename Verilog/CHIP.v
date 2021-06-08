@@ -58,8 +58,8 @@ module CHIP(
     reg [2:0] type;
     reg jalr, jal, branch, mem_to_reg, alu_src;
     reg [6:0] opcode;
-    reg [2:0] funct3;
-    reg [6:0] funct7;
+    reg [2:0] func3;
+    reg [6:0] func7;
     
     // mul
     reg mul_valid;
@@ -67,7 +67,7 @@ module CHIP(
     wire mul_ready;
 
     // alu
-    reg [3:0] alu_ctrl;
+    reg [2:0] alu_ctrl;
     reg signed [31:0] alu_in_2;
     reg signed [31:0] alu_out, imm_gen_out;
 
@@ -91,8 +91,8 @@ module CHIP(
         .q2(rs2_data));                      //
     //---------------------------------------//
     mulDiv mul_div_inst(
-        .clk(clk), .rst_n(rst_n), .valid(mul_valid), mode(1'd1),
-        .in_A(rs1_data), in_B(rs2_data),
+        .clk(clk), .rst_n(rst_n), .valid(mul_valid), .mode(1'd1),
+        .in_A(rs1_data), .in_B(rs2_data),
         .ready(mul_ready), .out(mul_out)
     );
 
@@ -193,21 +193,21 @@ module CHIP(
     // immediate generator
     always @(*) begin
         case (type)
-            I_type: imm_gen_out = {20{mem_rdata_I[31]}, mem_rdata_I[31:20]};
-            S_type: imm_gen_out = {20{mem_rdata_I[31]}, mem_rdata_I[31:25], mem_rdata_I[11:7]};
-            B_type: imm_gen_out = {20{mem_rdata_I[31]}, mem_rdata_I[7], mem_rdata_I[29:25], mem_rdata_I[11:8]};
+            I_type: imm_gen_out = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
+            S_type: imm_gen_out = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:25], mem_rdata_I[11:7]};
+            B_type: imm_gen_out = {{20{mem_rdata_I[31]}}, mem_rdata_I[7], mem_rdata_I[29:25], mem_rdata_I[11:8]};
             U_type: imm_gen_out = {mem_rdata_I[31:12], 12'd0};
-            J_type: imm_gen_out = {12{mem_rdata_I[31]}, mem_rdata_I[19:12], mem_rdata_I[20], mem_rdata_I[30:21]};
+            J_type: imm_gen_out = {{12{mem_rdata_I[31]}}, mem_rdata_I[19:12], mem_rdata_I[20], mem_rdata_I[30:21]};
             default: imm_gen_out = 32'd0;
         endcase
     end
 
     // alu control
     always @(*) begin
-        alu_ctrl = func3[2] == 1'b1? SRA: 
-                   func3[0] == 1'b1? SLL:
-                   func3[1] == 1'b1 && opcode[4] == 1'b1? SLT:
-                   (func3[1] == 1'b0 && opcode[2] == 1'b0 && opcode[5] == 1'b1) && (opcode[4] == 1'b0 || (func7[5] == 1'b1 && opcode[4] == 1'b1))? SUB:
+        alu_ctrl = func3[2]? SRA : 
+                   func3[0]? SLL :
+                   (func3[1] & opcode[4])? SLT :
+                   ((func3[1] == 1'b0 & opcode[2] == 1'b0 & opcode[5]) & (opcode[4] == 1'b0 || (func7[5] & opcode[4])))? SUB :
                    ADD;
     end
 
@@ -218,9 +218,9 @@ module CHIP(
             ADD: begin alu_out = rs1_data +　alu_in_2; end
             SUB: begin alu_out = rs1_data -　alu_in_2; end
             SLT: begin alu_out = (rs1_data < alu_in_2)? 32'd1 : 32'd0; end
-            SLL: begin alu_out = rs1_data << ali_in_2; end
-            SRA: begin alu_out = rs1_data >>> ali_in_2; end
-            default: begin alu_out = 32'd0 end
+            SLL: begin alu_out = rs1_data << alu_in_2; end
+            SRA: begin alu_out = rs1_data >>> alu_in_2; end
+            default: begin alu_out = 32'd0; end
         endcase
     end
 
