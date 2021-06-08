@@ -105,7 +105,7 @@ module CHIP(
                 state_nxt = mul_ready? RUN : STALL;
             end
             default: begin
-                state_nxt = state;
+                state_nxt = RUN;
             end
         endcase
     end
@@ -137,12 +137,6 @@ module CHIP(
                 : 
                 default: 
             endcase
-        end else begin
-            jalr = 0;
-            jal = 0;
-            branch = 0;
-            mem_to_reg = 0;
-            alu_src = 0;
         end
     end
 
@@ -158,7 +152,6 @@ module CHIP(
             3'b000:
         endcase
     end
-
 
     // handle PC
     always @(*) begin
