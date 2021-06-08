@@ -29,9 +29,9 @@ module CHIP(
     reg [31:0] PC_nxt;
     reg regWrite;
     reg [4:0] rs1, rs2, rd;
-    wire [31:0] rs1_data;
-    wire [31:0] rs2_data;
-    reg [31:0] rd_data;
+    wire signed [31:0] rs1_data;    //TODO: modify to signed is ok??
+    wire signed [31:0] rs2_data;
+    wire [31:0] rd_data;
     //---------------------------------------//
 
     // Todo: other wire/reg
@@ -68,7 +68,11 @@ module CHIP(
 
     // alu
     reg [3:0] alu_ctrl;
-    reg [31:0] alu_out, imm_gen_out;
+    reg signed [31:0] alu_in_2;
+    reg signed [31:0] alu_out, imm_gen_out;
+
+    // pc
+    reg [31:0] pc_a4;
 
     // flip-flops
     reg state, state_nxt;
@@ -97,7 +101,6 @@ module CHIP(
     // Finite State Machine
     always @(*) begin
         case (state)
-        // TODO: detect  and handle FSM
             RUN: begin
                 state_nxt = mul_valid? STALL : RUN;
             end
@@ -129,6 +132,9 @@ module CHIP(
     assign mem_addr_I = PC;
     assign mem_addr_D = alu_out;
     assign mem_wdata_D = rs2_data;
+    assign rd_data = (jal | jalr)? pc_a4
+                    : mem_to_reg? mem_rdata_D : alu_out;
+
     always @(*) begin
         opcode = mem_rdata_I[6:0];
         rd = mem_rdata_I[11:7];
@@ -141,13 +147,47 @@ module CHIP(
         jal = 0;
         branch = 0;
         mem_to_reg = 0;
+        mem_wen_D = 0;
         alu_src = 0;
-        if (state == RUN) begin
-            case (type)
-                : 
-                default: 
-            endcase
-        end
+        regWrite = 0;
+        mul_valid = 0;
+        case (type)
+            R_type: begin
+                regWrite = 1;
+                mul_valid = state==RUN & !opcode[3];
+            end
+            I_type: begin  // JALR, LW, ADDI, SLTI
+                jalr = opcode[2];
+                mem_to_reg = opcode[4] & opcode[5];
+                alu_src = 1;
+                regWrite = 1;
+            end
+            S_type: begin  // SW
+                mem_wen_D = 1;
+                alu_src = 1;
+                regWrite = 1;
+            end
+            B_type: begin  // BEQ
+                branch = 1;
+            end
+            U_type: begin  // AUIPC
+                alu_src = 1;
+                regWrite = 1;
+            end
+            J_type: begin  // JAL
+                jal = 1;
+            end
+            default: begin
+                jalr = 0;
+                jal = 0;
+                branch = 0;
+                mem_to_reg = 0;
+                mem_wen_D = 0;
+                alu_src = 0;
+                regWrite = 0;
+                mul_valid = 0;
+            end
+        endcase
     end
 
     // immediate generator
@@ -166,15 +206,35 @@ module CHIP(
 
     // alu
     always @(*) begin
+        alu_in_2 = alu_src? imm_gen_out : rs2_data;
         case (alu_ctrl)
-            3'b000:
-            3'b000:
+            ADD: begin alu_out = rs1_data +　alu_in_2; end
+            SUB: begin alu_out = rs1_data -　alu_in_2; end
+            SLT: begin alu_out = (rs1_data < alu_in_2)? 32'd1 : 32'd0; end
+            SLL: begin alu_out = rs1_data << ali_in_2; end
+            SRA: begin alu_out = rs1_data >>> ali_in_2; end
+            default: begin alu_out = 32'd0 end
         endcase
     end
 
-    // handle PC
+
+    // handle PC (mul stall)
     always @(*) begin
-        PC_nxt = PC;  // PC + 4?
+        pc_a4 = PC + 4;
+        if (state == RUN) begin
+            if (mul_valid) begin
+                PC_nxt = PC;
+            end else begin
+                PC_nxt = jalr? (imm_gen_out + (rs1_data))
+                        : ( (branch & (alu_out == 0)) | jal )? (imm_gen_out + PC) : pc_a4;
+            end
+        end else begin
+            if (mul_ready) begin
+                PC_nxt = pc_a4;
+            end else begin
+                PC_nxt = PC;
+            end
+        end
     end
 
     //===== Sequential ==========================
