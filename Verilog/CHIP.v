@@ -29,8 +29,8 @@ module CHIP(
     reg [31:0] PC_nxt;
     reg regWrite;
     reg [4:0] rs1, rs2, rd;
-    wire signed [31:0] rs1_data;    //TODO: modify to signed is ok??
-    wire signed [31:0] rs2_data;
+    wire [31:0] rs1_data;
+    wire [31:0] rs2_data;
     wire [31:0] rd_data;
     //---------------------------------------//
 
@@ -63,11 +63,12 @@ module CHIP(
     
     // mul
     reg mul_valid;
-    wire [63:0] mul_out;
+    wire [63:0] mul_out;  //TODO: output to reg
     wire mul_ready;
 
     // alu
     reg [2:0] alu_ctrl;
+    reg signed [31:0] alu_in_1;
     reg signed [31:0] alu_in_2;
     reg signed [31:0] alu_out, imm_gen_out;
 
@@ -125,6 +126,7 @@ module CHIP(
             7'b1100011: begin type = B_type; end
             7'b0010111: begin type = U_type; end
             7'b1101111: begin type = J_type; end
+            default: begin type = R_type; end
         endcase
     end
 
@@ -191,6 +193,7 @@ module CHIP(
     end
 
     // immediate generator
+    // TODO: not correct, why 64 bits?
     always @(*) begin
         case (type)
             I_type: imm_gen_out = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
@@ -216,6 +219,7 @@ module CHIP(
 
     // alu
     always @(*) begin
+        alu_in_1 = rs1_data;
         alu_in_2 = alu_src? imm_gen_out : rs2_data;
         case (alu_ctrl)
             ADD: begin alu_out = rs1_data +　alu_in_2; end
@@ -231,11 +235,12 @@ module CHIP(
     // handle PC (mul stall)
     always @(*) begin
         pc_a4 = PC + 4;
+
         if (state == RUN) begin
             if (mul_valid) begin
                 PC_nxt = PC;
             end else begin
-                PC_nxt = jalr? (imm_gen_out + (rs1_data))
+                PC_nxt = jalr? (imm_gen_out + rs1_data)
                         : ( (branch & (alu_out == 0)) | jal )? (imm_gen_out + PC) : pc_a4;
             end
         end else begin
