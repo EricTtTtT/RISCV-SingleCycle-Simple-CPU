@@ -222,11 +222,11 @@ module CHIP(
         alu_in_1 = rs1_data;
         alu_in_2 = alu_src? imm_gen_out : rs2_data;
         case (alu_ctrl)
-            ADD: begin alu_out = rs1_data +　alu_in_2; end
-            SUB: begin alu_out = rs1_data -　alu_in_2; end
-            SLT: begin alu_out = (rs1_data < alu_in_2)? 32'd1 : 32'd0; end
-            SLL: begin alu_out = rs1_data << alu_in_2; end
-            SRA: begin alu_out = rs1_data >>> alu_in_2; end
+            ADD: begin alu_out = alu_in_1 + alu_in_2; end
+            SUB: begin alu_out = alu_in_1 - alu_in_2; end
+            SLT: begin alu_out = (alu_in_1 < alu_in_2)? 32'd1 : 32'd0; end
+            SLL: begin alu_out = alu_in_1 << alu_in_2; end
+            SRA: begin alu_out = alu_in_1 >>> alu_in_2; end
             default: begin alu_out = 32'd0; end
         endcase
     end
