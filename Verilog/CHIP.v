@@ -207,7 +207,7 @@ module CHIP(
         alu_ctrl = func3[2]? SRA : 
                    func3[0]? SLL :
                    (func3[1] & opcode[4])? SLT :
-                   ((func3[1] == 1'b0 & opcode[2] == 1'b0 & opcode[5]) & (opcode[4] == 1'b0 || (func7[5] & opcode[4])))? SUB :
+                   ((~func3[1] & ~opcode[2] & opcode[5]) & (~opcode[4] || (func7[5] & opcode[4])))? SUB :
                    ADD;
     end
 
