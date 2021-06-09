@@ -267,7 +267,7 @@ module CHIP(
         case (alu_ctrl)
             ADD: begin alu_out = alu_in_1 + alu_in_2; end
             SUB: begin alu_out = alu_in_1 - alu_in_2; end
-            SLT: begin alu_out = (alu_in_1 < alu_in_2)? 32'd1 : 32'd0; end
+            SLT: begin alu_out = (alu_in_1 <= alu_in_2)? 32'd1 : 32'd0; end
             SLL: begin alu_out = alu_in_1 << alu_in_2; end
             SRA: begin alu_out = alu_in_1 >>> alu_in_2; end
             default: begin alu_out = 32'd0; end
