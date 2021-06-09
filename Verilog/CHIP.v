@@ -93,7 +93,7 @@ module CHIP(
         .q2(rs2_data));                      //
     //---------------------------------------//
     mulDiv mul_div_inst(
-        .clk(clk), .rst_n(rst_n), .valid(mul_valid), .mode(1'd1),
+        .clk(clk), .rst_n(rst_n), .valid(mul_valid), .mode(1'd0),
         .in_A(rs1_data), .in_B(rs2_data),
         .ready(mul_ready), .out(mul_out)
     );
@@ -134,78 +134,41 @@ module CHIP(
     // handle I/O and control signals
     always @(*) begin
         if (state == RUN) begin
+            jalr = 0;
+            jal = 0;
+            branch = 0;
+            mem_to_reg = 0;
+            mem_wen_D = 0;
+            alu_src = 0;
+            regWrite = 0;
+            mul_valid = 0;
+            auipc = 0;
             case (type)
                 R_type: begin  // ADD, SUB, MUL
-                    regWrite = 1;
+                    regWrite = ~func7[0];
                     mul_valid = func7[0];
-
-                    jalr = 0;
-                    jal = 0;
-                    branch = 0;
-                    mem_to_reg = 0;
-                    mem_wen_D = 0;
-                    alu_src = 0;
-                    auipc = 0;
                 end
                 I_type: begin  // JALR, LW, ADDI, SLTI, SLLI, SRAI
                     jalr = opcode[2];
                     mem_to_reg = (opcode[5:4]==2'd0);
                     alu_src = 1;
                     regWrite = 1;
-
-                    jal = 0;
-                    branch = 0;
-                    mem_wen_D = 0;
-                    mul_valid = 0;
-                    auipc = 0;
                 end
                 S_type: begin  // SW
                     mem_wen_D = 1;
                     alu_src = 1;
-
-                    jalr = 0;
-                    jal = 0;
-                    branch = 0;
-                    mem_to_reg = 0;
-                    mul_valid = 0;
-                    auipc = 0;
-                    regWrite = 0;
                 end
                 B_type: begin  // BEQ
                     branch = 1;
-
-                    jalr = 0;
-                    jal = 0;
-                    mem_to_reg = 0;
-                    mem_wen_D = 0;
-                    alu_src = 0;
-                    regWrite = 0;
-                    mul_valid = 0;
-                    auipc = 0;
                 end
                 U_type: begin  // AUIPC
                     auipc = 1;
                     alu_src = 1;
                     regWrite = 1;
-
-                    jalr = 0;
-                    jal = 0;
-                    branch = 0;
-                    mem_to_reg = 0;
-                    mem_wen_D = 0;
-                    mul_valid = 0;
                 end
                 J_type: begin  // JAL
                     jal = 1;
                     regWrite = 1;
-
-                    jalr = 0;
-                    branch = 0;
-                    mem_to_reg = 0;
-                    mem_wen_D = 0;
-                    alu_src = 0;
-                    mul_valid = 0;
-                    auipc = 0;
                 end
                 default: begin
                     jalr = 0;
@@ -221,15 +184,27 @@ module CHIP(
             endcase
         end else begin
             // TODO: add mul_out to reg
-            jalr = 0;
-            jal = 0;
-            branch = 0;
-            mem_to_reg = 0;
-            mem_wen_D = 0;
-            alu_src = 0;
-            regWrite = 0;
-            mul_valid = 0;
-            auipc = 0;
+            if (mul_ready) begin
+                jalr = 0;
+                jal = 0;
+                branch = 0;
+                mem_to_reg = 0;
+                mem_wen_D = 0;
+                alu_src = 0;
+                regWrite = 1;
+                mul_valid = 0;
+                auipc = 0;
+            end else begin
+                jalr = 0;
+                jal = 0;
+                branch = 0;
+                mem_to_reg = 0;
+                mem_wen_D = 0;
+                alu_src = 0;
+                regWrite = 0;
+                mul_valid = 0;
+                auipc = 0;
+            end
         end
     end
 
@@ -267,7 +242,7 @@ module CHIP(
         case (alu_ctrl)
             ADD: begin alu_out = alu_in_1 + alu_in_2; end
             SUB: begin alu_out = alu_in_1 - alu_in_2; end
-            SLT: begin alu_out = (alu_in_1 <= alu_in_2)? 32'd1 : 32'd0; end
+            SLT: begin alu_out = (alu_in_1 < alu_in_2)? 32'd1 : 32'd0; end
             SLL: begin alu_out = alu_in_1 << alu_in_2; end
             SRA: begin alu_out = alu_in_1 >>> alu_in_2; end
             default: begin alu_out = 32'd0; end
