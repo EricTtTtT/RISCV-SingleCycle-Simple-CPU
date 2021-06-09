@@ -156,7 +156,7 @@ module CHIP(
         case (type)
             R_type: begin
                 regWrite = 1;
-                mul_valid = state==RUN & ~opcode[3];
+                mul_valid = state==RUN & func7[0];
             end
             I_type: begin  // JALR, LW, ADDI, SLTI
                 jalr = opcode[2];
