@@ -71,7 +71,7 @@ module CHIP(
     reg signed [31:0] alu_in_1;
     reg signed [31:0] alu_in_2;
     reg signed [31:0] alu_out;
-    reg [31:0] imm_gen_out;
+    reg signed [31:0] imm_gen_out;
 
     // pc
     reg [31:0] pc_a4, pc_imm;
@@ -149,7 +149,7 @@ module CHIP(
                 end
                 I_type: begin  // JALR, LW, ADDI, SLTI, SLLI, SRAI
                     jalr = opcode[2];
-                    mem_to_reg = opcode[4] & opcode[5];
+                    mem_to_reg = (opcode[5:4]==2'd0);
                     alu_src = 1;
                     regWrite = 1;
 
@@ -241,9 +241,9 @@ module CHIP(
                                     : {26'd0, mem_rdata_I[24:20]}
                                 : {{20{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
             S_type: imm_gen_out = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:25], mem_rdata_I[11:7]};
-            B_type: imm_gen_out = {{20{mem_rdata_I[31]}}, mem_rdata_I[7], mem_rdata_I[29:25], mem_rdata_I[11:8]};
+            B_type: imm_gen_out = {{20{mem_rdata_I[31]}}, mem_rdata_I[7], mem_rdata_I[30:25], mem_rdata_I[11:8], 1'b0};
             U_type: imm_gen_out = {mem_rdata_I[31:12], 12'd0};
-            J_type: imm_gen_out = {{12{mem_rdata_I[31]}}, mem_rdata_I[19:12], mem_rdata_I[20], mem_rdata_I[30:21]};
+            J_type: imm_gen_out = {{12{mem_rdata_I[31]}}, mem_rdata_I[19:12], mem_rdata_I[20], mem_rdata_I[30:21], 1'b0};
             default: imm_gen_out = 32'd0;
         endcase
     end
