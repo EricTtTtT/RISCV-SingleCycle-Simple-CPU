@@ -204,11 +204,14 @@ module CHIP(
 
     // alu control
     always @(*) begin
-        alu_ctrl = func3[2]? SRA : 
-                   func3[0]? SLL :
-                   (func3[1] & opcode[4])? SLT :
-                   ((~func3[1] & ~opcode[2] & opcode[5]) & (~opcode[4] || (func7[5] & opcode[4])))? SUB :
-                   ADD;
+        alu_ctrl = func3[2]?
+                        SRA
+                    : func3[0]?
+                            SLL
+                        : (func3[1] & opcode[4])?
+                                SLT
+                            : ((~func3[1] & ~opcode[2] & opcode[5]) & (~opcode[4] || (func7[5] & opcode[4])))?
+                                SUB : ADD;
     end
 
     // alu
