@@ -28,7 +28,7 @@ module CHIP(
     reg [31:0] PC;
     reg [31:0] PC_nxt;
     reg regWrite;
-    reg [4:0] rs1, rs2, rd;
+    wire [4:0] rs1, rs2, rd;
     wire [31:0] rs1_data;
     wire [31:0] rs2_data;
     wire [31:0] rd_data;
@@ -56,10 +56,10 @@ module CHIP(
 
     // control
     reg [2:0] type;
-    reg jalr, jal, branch, mem_to_reg, alu_src;
-    reg [6:0] opcode;
-    reg [2:0] func3;
-    reg [6:0] func7;
+    reg jalr, jal, branch, mem_to_reg, alu_src, auipc;
+    wire [6:0] opcode;
+    wire [2:0] func3;
+    wire [6:0] func7;
     
     // mul
     reg mul_valid;
@@ -70,10 +70,11 @@ module CHIP(
     reg [2:0] alu_ctrl;
     reg signed [31:0] alu_in_1;
     reg signed [31:0] alu_in_2;
-    reg signed [31:0] alu_out, imm_gen_out;
+    reg signed [31:0] alu_out;
+    reg [31:0] imm_gen_out;
 
     // pc
-    reg [31:0] pc_a4;
+    reg [31:0] pc_a4, pc_imm;
 
     // flip-flops
     reg state, state_nxt;
@@ -99,104 +100,146 @@ module CHIP(
 
     // Todo: any combinational/sequential circuit
     //===== Combinational =======================
-    // Finite State Machine
-    always @(*) begin
-        case (state)
-            RUN: begin
-                state_nxt = mul_valid? STALL : RUN;
-            end
-            STALL: begin
-                state_nxt = mul_ready? RUN : STALL;
-            end
-            default: begin
-                state_nxt = RUN;
-            end
-        endcase
-    end
-
-    // detect instruction type by opcode
-    always @(*) begin
-        case (mem_rdata_I[6:0])
-            7'b0010011: begin type = R_type; end
-            7'b0110011: begin type = R_type; end
-            7'b1100111: begin type = I_type; end
-            7'b0000011: begin type = I_type; end
-            7'b0010011: begin type = I_type; end
-            7'b0100011: begin type = S_type; end
-            7'b1100011: begin type = B_type; end
-            7'b0010111: begin type = U_type; end
-            7'b1101111: begin type = J_type; end
-            default: begin type = R_type; end
-        endcase
-    end
-
-    // handle I/O and control signals
     assign mem_addr_I = PC;
     assign mem_addr_D = alu_out;
     assign mem_wdata_D = rs2_data;
     assign rd_data = (jal | jalr)? pc_a4
-                    : mem_to_reg? mem_rdata_D : alu_out;
+                    : mem_to_reg? mem_rdata_D
+                        : mul_ready? mul_out[31:0]
+                            : auipc? pc_imm
+                                : alu_out;
 
+    assign opcode = mem_rdata_I[6:0];
+    assign rd = (type==S_type && type==B_type)? 5'd0 : mem_rdata_I[11:7];
+    assign rs1 = (type==U_type && type==J_type)? 5'd0 : mem_rdata_I[19:15];
+    assign rs2 = (type==I_type && type==U_type && type==J_type)? 5'd0 : mem_rdata_I[24:20];
+    assign func3 = (type==U_type && type==J_type)? 3'd0 : mem_rdata_I[14:12];
+    assign func7 = state==R_type? mem_rdata_I[31:25] : 7'd0;
+
+    // detect instruction type by opcode
     always @(*) begin
-        opcode = mem_rdata_I[6:0];
-        rd = mem_rdata_I[11:7];
-        rs1 = mem_rdata_I[19:15];
-        rs2 = mem_rdata_I[24:20];
-        func3 = mem_rdata_I[14:12];
-        func7 = mem_rdata_I[31:25];
-
-        jalr = 0;
-        jal = 0;
-        branch = 0;
-        mem_to_reg = 0;
-        mem_wen_D = 0;
-        alu_src = 0;
-        regWrite = 0;
-        mul_valid = 0;
-        case (type)
-            R_type: begin
-                regWrite = 1;
-                mul_valid = state==RUN & func7[0];
-            end
-            I_type: begin  // JALR, LW, ADDI, SLTI
-                jalr = opcode[2];
-                mem_to_reg = opcode[4] & opcode[5];
-                alu_src = 1;
-                regWrite = 1;
-            end
-            S_type: begin  // SW
-                mem_wen_D = 1;
-                alu_src = 1;
-                regWrite = 1;
-            end
-            B_type: begin  // BEQ
-                branch = 1;
-            end
-            U_type: begin  // AUIPC
-                alu_src = 1;
-                regWrite = 1;
-            end
-            J_type: begin  // JAL
-                jal = 1;
-            end
-            default: begin
-                jalr = 0;
-                jal = 0;
-                branch = 0;
-                mem_to_reg = 0;
-                mem_wen_D = 0;
-                alu_src = 0;
-                regWrite = 0;
-                mul_valid = 0;
-            end
+        case (mem_rdata_I[6:0])
+            7'b0010111: begin type = U_type; end
+            7'b1101111: begin type = J_type; end
+            7'b1100111: begin type = I_type; end
+            7'b1100011: begin type = B_type; end
+            7'b0000011: begin type = I_type; end
+            7'b0100011: begin type = S_type; end
+            7'b0010011: begin type = I_type; end
+            7'b0110011: begin type = R_type; end
+            default: begin type = 3'd7; end
         endcase
     end
 
+    // handle I/O and control signals
+    always @(*) begin
+        if (state == RUN) begin
+            case (type)
+                R_type: begin  // ADD, SUB, MUL
+                    regWrite = 1;
+                    mul_valid = func7[0];
+
+                    jalr = 0;
+                    jal = 0;
+                    branch = 0;
+                    mem_to_reg = 0;
+                    mem_wen_D = 0;
+                    alu_src = 0;
+                    auipc = 0;
+                end
+                I_type: begin  // JALR, LW, ADDI, SLTI, SLLI, SRAI
+                    jalr = opcode[2];
+                    mem_to_reg = opcode[4] & opcode[5];
+                    alu_src = 1;
+                    regWrite = 1;
+
+                    jal = 0;
+                    branch = 0;
+                    mem_wen_D = 0;
+                    mul_valid = 0;
+                    auipc = 0;
+                end
+                S_type: begin  // SW
+                    mem_wen_D = 1;
+                    alu_src = 1;
+
+                    jalr = 0;
+                    jal = 0;
+                    branch = 0;
+                    mem_to_reg = 0;
+                    mul_valid = 0;
+                    auipc = 0;
+                    regWrite = 0;
+                end
+                B_type: begin  // BEQ
+                    branch = 1;
+
+                    jalr = 0;
+                    jal = 0;
+                    mem_to_reg = 0;
+                    mem_wen_D = 0;
+                    alu_src = 0;
+                    regWrite = 0;
+                    mul_valid = 0;
+                    auipc = 0;
+                end
+                U_type: begin  // AUIPC
+                    auipc = 1;
+                    alu_src = 1;
+                    regWrite = 1;
+
+                    jalr = 0;
+                    jal = 0;
+                    branch = 0;
+                    mem_to_reg = 0;
+                    mem_wen_D = 0;
+                    mul_valid = 0;
+                end
+                J_type: begin  // JAL
+                    jal = 1;
+                    regWrite = 1;
+
+                    jalr = 0;
+                    branch = 0;
+                    mem_to_reg = 0;
+                    mem_wen_D = 0;
+                    alu_src = 0;
+                    mul_valid = 0;
+                    auipc = 0;
+                end
+                default: begin
+                    jalr = 0;
+                    jal = 0;
+                    branch = 0;
+                    mem_to_reg = 0;
+                    mem_wen_D = 0;
+                    alu_src = 0;
+                    regWrite = 0;
+                    mul_valid = 0;
+                    auipc = 0;
+                end
+            endcase
+        end else begin
+            // TODO: add mul_out to reg
+            jalr = 0;
+            jal = 0;
+            branch = 0;
+            mem_to_reg = 0;
+            mem_wen_D = 0;
+            alu_src = 0;
+            regWrite = 0;
+            mul_valid = 0;
+            auipc = 0;
+        end
+    end
+
     // immediate generator
-    // TODO: not correct, why 64 bits?
     always @(*) begin
         case (type)
-            I_type: imm_gen_out = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
+            I_type: imm_gen_out = func3[0]?
+                                    func3[2]? {12'd0, 7'b0100000, mem_rdata_I[24:20]}
+                                    : {26'd0, mem_rdata_I[24:20]}
+                                : {{20{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
             S_type: imm_gen_out = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:25], mem_rdata_I[11:7]};
             B_type: imm_gen_out = {{20{mem_rdata_I[31]}}, mem_rdata_I[7], mem_rdata_I[29:25], mem_rdata_I[11:8]};
             U_type: imm_gen_out = {mem_rdata_I[31:12], 12'd0};
@@ -213,7 +256,7 @@ module CHIP(
                             SLL
                         : (func3[1] & opcode[4])?
                                 SLT
-                            : ((~func3[1] & ~opcode[2] & opcode[5]) & (~opcode[4] || (func7[5] & opcode[4])))?
+                            : ((~func3[1] & ~opcode[2] & opcode[5]) && (~opcode[4] | func7[5]))?
                                 SUB : ADD;
     end
 
@@ -235,13 +278,14 @@ module CHIP(
     // handle PC (mul stall)
     always @(*) begin
         pc_a4 = PC + 4;
+        pc_imm = PC + imm_gen_out;
 
         if (state == RUN) begin
             if (mul_valid) begin
                 PC_nxt = PC;
             end else begin
                 PC_nxt = jalr? (imm_gen_out + rs1_data)
-                        : ( (branch & (alu_out == 0)) | jal )? (imm_gen_out + PC) : pc_a4;
+                        : ( (branch & (alu_out == 0)) | jal )? pc_imm : pc_a4;
             end
         end else begin
             if (mul_ready) begin
@@ -250,6 +294,21 @@ module CHIP(
                 PC_nxt = PC;
             end
         end
+    end
+
+    // Finite State Machine
+    always @(*) begin
+        case (state)
+            RUN: begin
+                state_nxt = mul_valid? STALL : RUN;
+            end
+            STALL: begin
+                state_nxt = mul_ready? RUN : STALL;
+            end
+            default: begin
+                state_nxt = RUN;
+            end
+        endcase
     end
 
     //===== Sequential ==========================
