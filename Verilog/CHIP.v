@@ -211,9 +211,7 @@ module CHIP(
     // immediate generator
     always @(*) begin
         case (type)
-            I_type: imm_gen_out = func3[0]?
-                                    func3[2]? {12'd0, 7'b0100000, mem_rdata_I[24:20]}
-                                    : {26'd0, mem_rdata_I[24:20]}
+            I_type: imm_gen_out = func3[0]? {27'd0, mem_rdata_I[24:20]} // SLLI, SRAI
                                 : {{20{mem_rdata_I[31]}}, mem_rdata_I[31:20]};
             S_type: imm_gen_out = {{20{mem_rdata_I[31]}}, mem_rdata_I[31:25], mem_rdata_I[11:7]};
             B_type: imm_gen_out = {{20{mem_rdata_I[31]}}, mem_rdata_I[7], mem_rdata_I[30:25], mem_rdata_I[11:8], 1'b0};
