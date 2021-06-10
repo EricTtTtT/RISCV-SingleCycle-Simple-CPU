@@ -113,8 +113,8 @@ module CHIP(
     assign rd = (type==S_type && type==B_type)? 5'd0 : mem_rdata_I[11:7];
     assign rs1 = (type==U_type && type==J_type)? 5'd0 : mem_rdata_I[19:15];
     assign rs2 = (type==I_type && type==U_type && type==J_type)? 5'd0 : mem_rdata_I[24:20];
-    assign func3 = (type==U_type && type==J_type)? 3'd0 : mem_rdata_I[14:12];
-    assign func7 = state==R_type? mem_rdata_I[31:25] : 7'd0;
+    assign func3 = mem_rdata_I[14:12];
+    assign func7 = mem_rdata_I[31:25];
 
     // detect instruction type by opcode
     always @(*) begin
@@ -133,16 +133,16 @@ module CHIP(
 
     // handle I/O and control signals
     always @(*) begin
+        jalr = 0;
+        jal = 0;
+        branch = 0;
+        mem_to_reg = 0;
+        mem_wen_D = 0;
+        alu_src = 0;
+        regWrite = 0;
+        mul_valid = 0;
+        auipc = 0;
         if (state == RUN) begin
-            jalr = 0;
-            jal = 0;
-            branch = 0;
-            mem_to_reg = 0;
-            mem_wen_D = 0;
-            alu_src = 0;
-            regWrite = 0;
-            mul_valid = 0;
-            auipc = 0;
             case (type)
                 R_type: begin  // ADD, SUB, MUL
                     regWrite = ~func7[0];
@@ -183,28 +183,7 @@ module CHIP(
                 end
             endcase
         end else begin
-            // TODO: add mul_out to reg
-            if (mul_ready) begin
-                jalr = 0;
-                jal = 0;
-                branch = 0;
-                mem_to_reg = 0;
-                mem_wen_D = 0;
-                alu_src = 0;
-                regWrite = 1;
-                mul_valid = 0;
-                auipc = 0;
-            end else begin
-                jalr = 0;
-                jal = 0;
-                branch = 0;
-                mem_to_reg = 0;
-                mem_wen_D = 0;
-                alu_src = 0;
-                regWrite = 0;
-                mul_valid = 0;
-                auipc = 0;
-            end
+            regWrite = mul_ready;
         end
     end
 
