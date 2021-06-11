@@ -34,7 +34,6 @@ module CHIP(
     wire [31:0] rd_data;
     //---------------------------------------//
 
-    // Todo: other wire/reg
     // states
     parameter RUN = 1'd0;
     parameter STALL = 1'd1;
@@ -63,7 +62,7 @@ module CHIP(
     
     // mul
     reg mul_valid;
-    wire [63:0] mul_out;  //TODO: output to reg
+    wire [63:0] mul_out;
     wire mul_ready;
 
     // alu
@@ -98,7 +97,6 @@ module CHIP(
         .ready(mul_ready), .out(mul_out)
     );
 
-    // Todo: any combinational/sequential circuit
     //===== Combinational =======================
     assign mem_addr_I = PC;
     assign mem_addr_D = alu_out;
