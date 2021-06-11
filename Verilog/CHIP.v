@@ -1,5 +1,5 @@
 /*===============================================
-Author: (add_your_name_here), Chang-Lin Tsai, Eric Tien 
+Author: Yeu-Tong Lau, Chang-Lin Tsai, Eric Tien 
 Module: CHIP, reg_file, mulDiv
 Description: 
     Single cycle RISC-V processor for simplify instructions.

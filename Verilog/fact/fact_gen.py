@@ -6,7 +6,7 @@ def fact(n):
 
 if __name__ == '__main__':
     # Modify your test pattern here
-    n = 3
+    n = 8
         
     with open('fact_data.txt', 'w') as f_data:
         f_data.write('{:0>8x}\n'.format(n))

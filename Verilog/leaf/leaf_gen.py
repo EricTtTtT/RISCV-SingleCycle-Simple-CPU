@@ -9,10 +9,10 @@ def toHex(x):
 
 if __name__ == '__main__':
     # Modify your test pattern here
-    a = 0
-    b = 6
-    c = 1
-    d = 5
+    a = 10
+    b = 2
+    c = 3
+    d = 4
     
     with open('leaf_data.txt', 'w') as f_data:
         f_data.write('{:0>8x}\n'.format(toHex(a)))
